@@ -190,10 +190,16 @@
                         <i data-lucide="receipt" class="w-4 h-4 text-slate-400"></i>
                         Gastos de Hoy
                     </h3>
-                    <button onclick="openExpenseModal()" class="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1">
-                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-                        Añadir Gasto
-                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="openIncomeModal()" class="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            Ingreso
+                        </button>
+                        <button onclick="openExpenseModal()" class="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            Gasto
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Lista de Gastos -->
@@ -274,6 +280,47 @@
         </div>
     </div>
 
+    <!-- MODAL 1.5: NUEVO INGRESO -->
+    <div id="income-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 space-y-4 animate-in slide-in-from-bottom duration-200">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-100">Registrar un Ingreso</h3>
+                <button onclick="closeIncomeModal()" class="text-slate-400 hover:bg-slate-800 p-1.5 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <form id="income-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Monto del Ingreso</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold">$</span>
+                        <input id="income-amount" type="number" required placeholder="0" class="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 pl-8 pr-4 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-lg font-semibold">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Descripción / Nota</label>
+                    <input id="income-desc" type="text" placeholder="Ej: Salario, Venta, Bonus..." class="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 px-4 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Categoría</label>
+                    <select id="income-category" class="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 px-4 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                        <option value="Salario">💼 Salario / Sueldo</option>
+                        <option value="Venta">🛒 Venta</option>
+                        <option value="Bonus">🎁 Bonus / Extra</option>
+                        <option value="Inversión">📈 Inversión</option>
+                        <option value="Otros" selected>📦 Otros / Varios</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3.5 rounded-xl transition-transform active:scale-[0.98] mt-2 flex items-center justify-center gap-2">
+                    <i data-lucide="check" class="w-5 h-5"></i>
+                    Confirmar Ingreso
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- MODAL 2: CONFIGURACIÓN / REINICIAR RETO -->
     <div id="config-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-6 space-y-6">
@@ -325,7 +372,8 @@
             targetSavings: 0,
             totalDays: 30,
             startDate: '', // Formato YYYY-MM-DD
-            expenses: [] // Array de { id, amount, desc, category, date }
+            expenses: [], // Array de { id, amount, desc, category, date }
+            incomes: [] // Array de { id, amount, desc, category, date }
         };
 
         // Al iniciar la app, cargamos datos existentes de LocalStorage
@@ -416,7 +464,8 @@
                 targetSavings: target,
                 totalDays: days,
                 startDate: startDate,
-                expenses: []
+                expenses: [],
+                incomes: []
             };
 
             saveToLocalStorage();
@@ -467,6 +516,9 @@
             // Calcular gastos totales realizados
             const totalSpent = challenge.expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
+            // Calcular ingresos totales recibidos
+            const totalIncome = challenge.incomes.reduce((sum, inc) => sum + inc.amount, 0);
+
             // GASTOS EFECTUADOS EXCLUSIVAMENTE HOY (Fecha local)
             const todayLocalString = new Date().toLocaleDateString();
             const todaySpent = challenge.expenses
@@ -474,8 +526,8 @@
                 .reduce((sum, exp) => sum + exp.amount, 0);
 
             // FÓRMULA DE ACUMULACIÓN: El remanente que se pasa de días anteriores es igual a:
-            // (Presupuesto Acumulado hasta hoy) - (Todo lo que se ha gastado en total hasta hoy)
-            const todayAllowance = accumulatedBudgetToDate - totalSpent;
+            // (Presupuesto Acumulado hasta hoy) - (Todo lo que se ha gastado en total hasta hoy) + (Ingresos recibidos)
+            const todayAllowance = accumulatedBudgetToDate - totalSpent + totalIncome;
 
             // 3. Renderizar las estadísticas e interfaz
             const allowanceElement = document.getElementById('today-allowance');
@@ -508,8 +560,8 @@
                 document.getElementById('stat-days-sub').textContent = `Quedan ${challenge.totalDays - currentDay} días`;
             }
 
-            document.getElementById('stat-total-budget').textContent = formatCurrency(Math.max(0, totalToSpend - totalSpent));
-            document.getElementById('stat-current-real').textContent = formatCurrency(Math.max(0, challenge.initialCapital - totalSpent));
+            document.getElementById('stat-total-budget').textContent = formatCurrency(Math.max(0, totalToSpend - totalSpent + totalIncome));
+            document.getElementById('stat-current-real').textContent = formatCurrency(Math.max(0, challenge.initialCapital - totalSpent + totalIncome));
 
             // Actualizar datos de configuración para el modal
             document.getElementById('conf-cap').textContent = formatCurrency(challenge.initialCapital);
@@ -521,72 +573,91 @@
             renderTodayExpenses();
         }
 
-        // Renderizar gastos hechos hoy en el dashboard
+        // Renderizar gastos e ingresos hechos hoy en el dashboard
         function renderTodayExpenses() {
             const container = document.getElementById('expenses-container');
             container.innerHTML = '';
 
             const todayLocalString = new Date().toLocaleDateString();
             const todayExpenses = challenge.expenses.filter(exp => new Date(exp.date).toLocaleDateString() === todayLocalString);
+            const todayIncomes = challenge.incomes.filter(inc => new Date(inc.date).toLocaleDateString() === todayLocalString);
 
-            if (todayExpenses.length === 0) {
+            if (todayExpenses.length === 0 && todayIncomes.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-6 bg-slate-800/20 rounded-xl border border-dashed border-slate-800 text-slate-500 text-xs">
-                        No has registrado gastos hoy. ¡Sigue así! 🎉
+                        No has registrado movimientos hoy. ¡Sigue así! 🎉
                     </div>
                 `;
                 return;
             }
 
-            // Ordenar los de hoy de más recientes a más antiguos
-            todayExpenses.slice().reverse().forEach(exp => {
-                const item = document.createElement('div');
-                item.className = "bg-slate-800/50 hover:bg-slate-800 p-3 rounded-xl border border-slate-800/80 flex justify-between items-center transition-all";
-                item.innerHTML = `
+            // Combinar y ordenar por fecha (más recientes primero)
+            const allTodayItems = [
+                ...todayExpenses.map(item => ({...item, type: 'expense'})),
+                ...todayIncomes.map(item => ({...item, type: 'income'}))
+            ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            allTodayItems.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "bg-slate-800/50 hover:bg-slate-800 p-3 rounded-xl border border-slate-800/80 flex justify-between items-center transition-all";
+                
+                const isIncome = item.type === 'income';
+                const amountClass = isIncome ? 'text-emerald-400' : 'text-red-400';
+                const amountPrefix = isIncome ? '+' : '-';
+                const deleteFunction = isIncome ? `deleteIncome(${item.id})` : `deleteExpense(${item.id})`;
+                const deleteTitle = isIncome ? 'Eliminar ingreso' : 'Eliminar gasto';
+
+                itemDiv.innerHTML = `
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-sm">
-                            ${getCategoryIcon(exp.category)}
+                            ${getCategoryIcon(item.category)}
                         </div>
                         <div>
-                            <h4 class="font-semibold text-xs text-slate-200">${exp.desc || 'Gasto sin nota'}</h4>
-                            <span class="text-[10px] text-slate-500">${exp.category}</span>
+                            <h4 class="font-semibold text-xs text-slate-200">${item.desc || (isIncome ? 'Ingreso sin nota' : 'Gasto sin nota')}</h4>
+                            <span class="text-[10px] text-slate-500">${item.category}</span>
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="text-xs font-bold text-red-400">-${formatCurrency(exp.amount)}</span>
-                        <button onclick="deleteExpense(${exp.id})" class="text-slate-500 hover:text-red-400 p-1 rounded-lg transition-colors" title="Eliminar gasto">
+                        <span class="text-xs font-bold ${amountClass}">${amountPrefix}${formatCurrency(item.amount)}</span>
+                        <button onclick="${deleteFunction}" class="text-slate-500 hover:text-red-400 p-1 rounded-lg transition-colors" title="${deleteTitle}">
                             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
                 `;
-                container.appendChild(item);
+                container.appendChild(itemDiv);
             });
             lucide.createIcons();
         }
 
-        // Renderizar el historial completo de gastos de todo el reto
+        // Renderizar el historial completo de gastos e ingresos de todo el reto
         function renderFullHistory() {
             const container = document.getElementById('full-history-list');
             container.innerHTML = '';
 
-            if (challenge.expenses.length === 0) {
+            if (challenge.expenses.length === 0 && challenge.incomes.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-12 bg-slate-800/20 rounded-2xl border border-dashed border-slate-800 text-slate-400 text-sm">
                         <i data-lucide="receipt" class="w-8 h-8 mx-auto mb-2 text-slate-500"></i>
-                        Aún no tienes ningún gasto en este reto de ahorro.
+                        Aún no tienes ningún movimiento en este reto de ahorro.
                     </div>
                 `;
                 return;
             }
 
-            // Agrupar gastos por fecha
+            // Combinar gastos e ingresos y ordenar por fecha
+            const allItems = [
+                ...challenge.expenses.map(item => ({...item, type: 'expense'})),
+                ...challenge.incomes.map(item => ({...item, type: 'income'}))
+            ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // Agrupar por fecha
             const groups = {};
-            challenge.expenses.slice().reverse().forEach(exp => {
-                const dateLabel = new Date(exp.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+            allItems.forEach(item => {
+                const dateLabel = new Date(item.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
                 if (!groups[dateLabel]) {
                     groups[dateLabel] = [];
                 }
-                groups[dateLabel].push(exp);
+                groups[dateLabel].push(item);
             });
 
             // Imprimir grupos de fecha
@@ -599,27 +670,33 @@
                 header.textContent = dateLabel;
                 groupContainer.appendChild(header);
 
-                groups[dateLabel].forEach(exp => {
-                    const item = document.createElement('div');
-                    item.className = "bg-slate-800/50 p-3 rounded-xl border border-slate-800/50 flex justify-between items-center";
-                    item.innerHTML = `
+                groups[dateLabel].forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = "bg-slate-800/50 p-3 rounded-xl border border-slate-800/50 flex justify-between items-center";
+                    
+                    const isIncome = item.type === 'income';
+                    const amountClass = isIncome ? 'text-emerald-400' : 'text-red-400';
+                    const amountPrefix = isIncome ? '+' : '-';
+                    const deleteFunction = isIncome ? `deleteIncome(${item.id})` : `deleteExpense(${item.id})`;
+
+                    itemDiv.innerHTML = `
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-sm">
-                                ${getCategoryIcon(exp.category)}
+                                ${getCategoryIcon(item.category)}
                             </div>
                             <div>
-                                <h4 class="font-semibold text-xs text-slate-200">${exp.desc || 'Gasto sin nota'}</h4>
-                                <span class="text-[9px] text-slate-500 uppercase">${exp.category}</span>
+                                <h4 class="font-semibold text-xs text-slate-200">${item.desc || (isIncome ? 'Ingreso sin nota' : 'Gasto sin nota')}</h4>
+                                <span class="text-[9px] text-slate-500 uppercase">${item.category}</span>
                             </div>
                         </div>
                         <div class="flex items-center gap-3">
-                            <span class="text-xs font-bold text-red-400">-${formatCurrency(exp.amount)}</span>
-                            <button onclick="deleteExpense(${exp.id})" class="text-slate-500 hover:text-red-400 p-1 rounded-lg transition-colors">
+                            <span class="text-xs font-bold ${amountClass}">${amountPrefix}${formatCurrency(item.amount)}</span>
+                            <button onclick="${deleteFunction}" class="text-slate-500 hover:text-red-400 p-1 rounded-lg transition-colors">
                                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                             </button>
                         </div>
                     `;
-                    groupContainer.appendChild(item);
+                    groupContainer.appendChild(itemDiv);
                 });
                 container.appendChild(groupContainer);
             }
@@ -633,6 +710,10 @@
                 case 'Transporte': return '🚗';
                 case 'Servicios': return '💡';
                 case 'Ocio': return '🍿';
+                case 'Salario': return '💼';
+                case 'Venta': return '🛒';
+                case 'Bonus': return '🎁';
+                case 'Inversión': return '📈';
                 default: return '📦';
             }
         }
@@ -662,7 +743,39 @@
             closeExpenseModal();
             calculateAndRenderDashboard();
             showToast('Gasto agregado exitosamente', 'check-circle');
-            
+
+            // Si estábamos en el historial, refrescarlo también
+            if (!document.getElementById('history-screen').classList.contains('hidden')) {
+                renderFullHistory();
+            }
+        });
+
+        // Lógica para registrar un Ingreso
+        document.getElementById('income-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('income-amount').value);
+            const desc = document.getElementById('income-desc').value.trim();
+            const category = document.getElementById('income-category').value;
+
+            if (amount <= 0 || isNaN(amount)) {
+                showToast('Ingresa un monto válido mayor a cero', 'alert-circle');
+                return;
+            }
+
+            const newIncome = {
+                id: Date.now(),
+                amount: amount,
+                desc: desc,
+                category: category,
+                date: new Date().toISOString() // Registramos la fecha de hoy
+            };
+
+            challenge.incomes.push(newIncome);
+            saveToLocalStorage();
+            closeIncomeModal();
+            calculateAndRenderDashboard();
+            showToast('Ingreso agregado exitosamente', 'check-circle');
+
             // Si estábamos en el historial, refrescarlo también
             if (!document.getElementById('history-screen').classList.contains('hidden')) {
                 renderFullHistory();
@@ -673,12 +786,24 @@
         function deleteExpense(id) {
             challenge.expenses = challenge.expenses.filter(exp => exp.id !== id);
             saveToLocalStorage();
-            
+
             // Refrescar vistas activas
             calculateAndRenderDashboard();
             renderFullHistory();
-            
+
             showToast('Gasto eliminado correctamente', 'trash');
+        }
+
+        // Eliminar un ingreso por ID
+        function deleteIncome(id) {
+            challenge.incomes = challenge.incomes.filter(inc => inc.id !== id);
+            saveToLocalStorage();
+
+            // Refrescar vistas activas
+            calculateAndRenderDashboard();
+            renderFullHistory();
+
+            showToast('Ingreso eliminado correctamente', 'trash');
         }
 
         // Eliminar plan por completo (Reset)
@@ -691,7 +816,8 @@
                     targetSavings: 0,
                     totalDays: 30,
                     startDate: '',
-                    expenses: []
+                    expenses: [],
+                    incomes: []
                 };
                 toggleConfigModal();
                 renderApp();
@@ -709,6 +835,17 @@
 
         function closeExpenseModal() {
             document.getElementById('expense-modal').classList.add('hidden');
+        }
+
+        function openIncomeModal() {
+            document.getElementById('income-modal').classList.remove('hidden');
+            document.getElementById('income-amount').value = '';
+            document.getElementById('income-desc').value = '';
+            document.getElementById('income-amount').focus();
+        }
+
+        function closeIncomeModal() {
+            document.getElementById('income-modal').classList.add('hidden');
         }
 
         function toggleConfigModal() {
